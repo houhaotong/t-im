@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+
+<body>
+<div id="app">
+    <div class="content">
+        <div style="width: 480px;height: 430px;background: #dbfada;border: 1px solid #0bbc49;overflow: auto;"
+             id="contentId">
+
+        </div>
+    </div>
+
+    <input name="text" id="textId" value="我爱nima"/>
+    <button id="sendButton" onClick="send()">Send</button>
+    <button id="clearButton" onClick="clearMsg()">Clear</button>
+
+</div>
+</body>
+<script>
+    let ws;
+    let name='KrisWu';
+    //定时器
+    let tt;
+    //重连次数
+    let times=1;
+    let heartTimeout = 60 * 1000;
+    let heartInterval;
+    let send = function () {
+        ws.send(document.getElementById('textId').value)
+    }
+    let connect=function (){
+        try{
+            ws = new WebSocket('ws://127.0.0.1:9898?name='+name);
+            initWs();
+        }catch (e){
+            reconnect();
+        }
+    }
+
+    let initWs=function (){
+        ws.onopen = function (event) {
+            times=1;
+            console.log("已连接成功！,心跳时间为：" + heartTimeout / 2);
+            //设置定时发送心跳内容，时间为过期时间的1/2
+            heartInterval = setInterval(function () {
+                ws.send('心跳内容');
+            }, heartTimeout / 2);
+        }
+        ws.onclose = function () {
+            //清除定时发送心跳
+            clearInterval(heartInterval);
+            reconnect();
+        }
+        ws.onerror = function () {
+            clearInterval(heartInterval);
+            reconnect();
+        }
+        ws.onmessage = function (msg) {
+            let msgBody = eval('(' + msg.data + ')');
+            if (msgBody.name === 'admin') {
+                document.getElementById('contentId').innerHTML += '<li><div class="sysinfo">' + msgBody.message + '</div></li>';
+            } else {
+                document.getElementById('contentId').innerHTML += '<li><span class="user">' + msgBody.name + ':</span><span class="spancl">' + msgBody.message + '</span></li>';
+            }
+        }
+    }
+
+
+    let reconnect = function () {
+        clearTimeout(tt);
+        if(times<=5){
+            tt=setTimeout(function () {
+                console.log("第"+times +"次尝试重连");
+                times++;
+                connect();
+            }, 5000);
+        }else{
+            alert("重连次数已到达上线，服务器故障")
+        }
+
+    }
+
+    let clearMsg=function (){
+        document.getElementById('contentId').innerHTML='';
+    }
+
+    connect();
+</script>
+<style>
+    li{
+      display: block;
+    }
+    .sysinfo{
+        text-align: center;
+        border: dashed 1px;
+    }
+    .user{
+        color: red;
+    }
+</style>
+</html>
